@@ -583,3 +583,55 @@ func deleteQuestion(w http.ResponseWriter, r *http.Request) {
 	theme.Questions = append(theme.Questions[:questionIndex], theme.Questions[questionIndex+1:]...)
 	respondJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
+func reorderQuestions(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	roundIndex, err := strconv.Atoi(chi.URLParam(r, "roundIndex"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid round index")
+		return
+	}
+	themeIndex, err := strconv.Atoi(chi.URLParam(r, "themeIndex"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid theme index")
+		return
+	}
+	doc, ok := store.Get(id)
+	if !ok {
+		respondError(w, http.StatusNotFound, "Package not found")
+		return
+	}
+	if roundIndex < 0 || roundIndex >= len(doc.Package.Rounds) {
+		respondError(w, http.StatusNotFound, "Round not found")
+		return
+	}
+	round := doc.Package.Rounds[roundIndex]
+	if themeIndex < 0 || themeIndex >= len(round.Themes) {
+		respondError(w, http.StatusNotFound, "Theme not found")
+		return
+	}
+	theme := round.Themes[themeIndex]
+	var req struct {
+		From int `json:"from"`
+		To   int `json:"to"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	questions := theme.Questions
+	if req.From < 0 || req.From >= len(questions) || req.To < 0 || req.To >= len(questions) {
+		respondError(w, http.StatusBadRequest, "Invalid question indices")
+		return
+	}
+	// Move question from position 'from' to position 'to'
+	question := questions[req.From]
+	// Remove from old position
+	questions = append(questions[:req.From], questions[req.From+1:]...)
+	// Insert at new position
+	newQuestions := make([]*siq.Question, 0, len(questions)+1)
+	newQuestions = append(newQuestions, questions[:req.To]...)
+	newQuestions = append(newQuestions, question)
+	newQuestions = append(newQuestions, questions[req.To:]...)
+	theme.Questions = newQuestions
+	respondJSON(w, http.StatusOK, map[string]string{"status": "reordered"})
+}

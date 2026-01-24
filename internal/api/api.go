@@ -32,6 +32,8 @@ func RegisterRoutes(r chi.Router) {
 		r.Post("/packages/{id}/rounds/{roundIndex}/themes/{themeIndex}/questions", addQuestion)
 		r.Put("/packages/{id}/rounds/{roundIndex}/themes/{themeIndex}/questions/{questionIndex}", updateQuestion)
 		r.Delete("/packages/{id}/rounds/{roundIndex}/themes/{themeIndex}/questions/{questionIndex}", deleteQuestion)
+		r.Post("/packages/{id}/rounds/{roundIndex}/themes/{themeIndex}/questions/reorder", reorderQuestions)
+		r.Post("/packages/{id}/questions/reorder", reorderQuestions)
 		// Media operations
 		r.Get("/packages/{id}/media/{type}", listMedia)
 		r.Get("/packages/{id}/media/{type}/{name}", getMedia)

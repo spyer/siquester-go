@@ -407,6 +407,7 @@ body.resizing {
     cursor: pointer;
     transition: all var(--transition);
     gap: 6px;
+    position: relative;
 }
 .tree-item:hover {
     background: var(--bg-hover);

@@ -104,6 +104,7 @@ const i18n = {
         themeMoved: 'Theme moved',
         questionAdded: 'Question added',
         questionDeleted: 'Question deleted',
+        questionMoved: 'Question moved',
         fileDeleted: 'File deleted',
         uploaded: 'Uploaded',
         failedToUpload: 'Failed to upload',
@@ -217,6 +218,7 @@ const i18n = {
         themeMoved: 'Тема перемещена',
         questionAdded: 'Вопрос добавлен',
         questionDeleted: 'Вопрос удалён',
+        questionMoved: 'Вопрос перемещён',
         fileDeleted: 'Файл удалён',
         uploaded: 'Загружено',
         failedToUpload: 'Не удалось загрузить',
@@ -671,14 +673,15 @@ function renderTreeView() {
                                 state.selectedNode?.themeIndex === ti &&
                                 state.selectedNode?.questionIndex === qi;
                             html += `
-                                <div class="tree-node">
-                                    <div class="tree-item ${qSelected ? 'selected' : ''}" data-type="question" data-round="${ri}" data-theme="${ti}" data-question="${qi}">
+                                <div class="tree-node" data-question-node="${qi}" data-parent-round="${ri}" data-parent-theme="${ti}">
+                                    <div class="tree-item draggable ${qSelected ? 'selected' : ''}" data-type="question" data-round="${ri}" data-theme="${ti}" data-question="${qi}"
+                                         draggable="true" data-drag-type="question" data-drag-round="${ri}" data-drag-theme="${ti}" data-drag-question="${qi}">
                                         <span class="tree-toggle" style="visibility: hidden;">
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <polyline points="9 18 15 12 9 6"/>
                                             </svg>
                                         </span>
-                                        <span class="tree-item-icon">
+                                        <span class="tree-item-icon drag-handle" title="Drag to reorder">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="10"/>
                                                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
@@ -716,10 +719,13 @@ function renderTreeView() {
         </div>
     `;
     treeView.innerHTML = html;
-    // Add event listeners using event delegation
-    treeView.addEventListener('click', handleTreeClick);
-    // Initialize drag and drop
-    initTreeDragDrop(treeView);
+    // Add event listeners using event delegation (only once)
+    if (!treeView.dataset.listenersInitialized) {
+        treeView.addEventListener('click', handleTreeClick);
+        // Initialize drag and drop
+        initTreeDragDrop(treeView);
+        treeView.dataset.listenersInitialized = 'true';
+    }
 }
 
 function handleTreeClick(event) {
@@ -774,7 +780,8 @@ let dragState = {
     dragging: null,
     dragType: null,
     dragRound: null,
-    dragTheme: null
+    dragTheme: null,
+    dragQuestion: null
 };
 
 function initTreeDragDrop(treeView) {
@@ -786,12 +793,14 @@ function initTreeDragDrop(treeView) {
         dragState.dragType = item.dataset.dragType;
         dragState.dragRound = parseInt(item.dataset.dragRound || item.dataset.dragIndex);
         dragState.dragTheme = parseInt(item.dataset.dragTheme);
+        dragState.dragQuestion = parseInt(item.dataset.dragQuestion);
         item.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', JSON.stringify({
             type: dragState.dragType,
             round: dragState.dragRound,
-            theme: dragState.dragTheme
+            theme: dragState.dragTheme,
+            question: dragState.dragQuestion
         }));
     });
     // Drag end
@@ -799,7 +808,7 @@ function initTreeDragDrop(treeView) {
         const item = e.target.closest('.tree-item');
         if (item) item.classList.remove('dragging');
         clearDropIndicators();
-        dragState = { dragging: null, dragType: null, dragRound: null, dragTheme: null };
+        dragState = { dragging: null, dragType: null, dragRound: null, dragTheme: null, dragQuestion: null };
     });
     // Drag over
     treeView.addEventListener('dragover', (e) => {
@@ -831,6 +840,20 @@ function initTreeDragDrop(treeView) {
                 // Dropping theme into a round
                 item.classList.add('drag-over');
             }
+        } else if (dragState.dragType === 'question') {
+            if (targetType === 'question') {
+                // Reordering questions within same theme
+                const targetRound = parseInt(item.dataset.round);
+                const targetTheme = parseInt(item.dataset.theme);
+                // Only allow reordering within the same theme
+                if (dragState.dragRound === targetRound && dragState.dragTheme === targetTheme) {
+                    if (e.clientY < midY) {
+                        item.classList.add('drag-over-above');
+                    } else {
+                        item.classList.add('drag-over-below');
+                    }
+                }
+            }
         }
     });
     // Drag leave
@@ -843,6 +866,7 @@ function initTreeDragDrop(treeView) {
     // Drop
     treeView.addEventListener('drop', async (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const item = e.target.closest('.tree-item');
         if (!item || !dragState.dragging || item === dragState.dragging) {
             clearDropIndicators();
@@ -851,6 +875,7 @@ function initTreeDragDrop(treeView) {
         const targetType = item.dataset.type;
         const targetRound = parseInt(item.dataset.round);
         const targetTheme = parseInt(item.dataset.theme);
+        const targetQuestion = parseInt(item.dataset.question);
         const rect = item.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
         const insertBefore = e.clientY < midY;
@@ -885,6 +910,17 @@ function initTreeDragDrop(treeView) {
                     if (fromRound !== toRound) {
                         const toTheme = state.currentPackage.rounds[toRound].themes?.length || 0;
                         await moveTheme(fromRound, fromTheme, toRound, toTheme);
+                    }
+                }
+            } else if (dragState.dragType === 'question' && targetType === 'question') {
+                // Reorder questions within the same theme
+                if (dragState.dragRound === targetRound && dragState.dragTheme === targetTheme) {
+                    const fromIndex = dragState.dragQuestion;
+                    let toIndex = targetQuestion;
+                    if (!insertBefore) toIndex++;
+                    if (fromIndex < toIndex) toIndex--;
+                    if (fromIndex !== toIndex) {
+                        await reorderQuestion(targetRound, targetTheme, fromIndex, toIndex);
                     }
                 }
             }
@@ -950,6 +986,35 @@ async function moveTheme(fromRound, fromTheme, toRound, toTheme) {
         }
         renderTreeView();
         showToast(t('themeMoved') || 'Theme moved');
+    } catch (err) {
+        throw err;
+    }
+}
+async function reorderQuestion(roundIndex, themeIndex, fromIndex, toIndex) {
+    if (!state.currentPackageId) return;
+    try {
+        await api(`/packages/${state.currentPackageId}/rounds/${roundIndex}/themes/${themeIndex}/questions/reorder`, {
+            method: 'POST',
+            body: JSON.stringify({ from: fromIndex, to: toIndex })
+        });
+        // Update local state
+        const questions = state.currentPackage.rounds[roundIndex].themes[themeIndex].questions;
+        const [moved] = questions.splice(fromIndex, 1);
+        questions.splice(toIndex, 0, moved);
+        // Update selected node if needed
+        if (state.selectedNode?.type === 'question' &&
+            state.selectedNode.roundIndex === roundIndex &&
+            state.selectedNode.themeIndex === themeIndex) {
+            if (state.selectedNode.questionIndex === fromIndex) {
+                state.selectedNode.questionIndex = toIndex;
+            } else if (fromIndex < state.selectedNode.questionIndex && state.selectedNode.questionIndex <= toIndex) {
+                state.selectedNode.questionIndex--;
+            } else if (toIndex <= state.selectedNode.questionIndex && state.selectedNode.questionIndex < fromIndex) {
+                state.selectedNode.questionIndex++;
+            }
+        }
+        renderTreeView();
+        showToast(t('questionMoved'));
     } catch (err) {
         throw err;
     }
