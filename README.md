@@ -1,6 +1,7 @@
 # SIQuester Go
 
 A cross-platform web-based editor for SIGame question packages (.siq files).
+Редактор паков для SIGame под веб. 
 
 ## Features
 
