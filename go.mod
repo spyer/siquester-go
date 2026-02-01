@@ -1,4 +1,4 @@
-module github.com/VladimirKhil/SI/siquester-go
+module github.com/spyer/siquester-go
 
 go 1.21
 

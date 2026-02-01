@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/VladimirKhil/SI/siquester-go/internal/siq"
+	"github.com/spyer/siquester-go/internal/siq"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )

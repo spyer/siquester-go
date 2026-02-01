@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/VladimirKhil/SI/siquester-go/internal/api"
+	"github.com/spyer/siquester-go/internal/api"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

@@ -800,6 +800,17 @@ textarea.form-input {
     margin-top: 16px;
     flex-wrap: wrap;
 }
+/* Answer Content - visual distinction */
+.answer-content-list .content-item {
+    border-left: 3px solid var(--success);
+}
+.answer-content-list .hint-text {
+    margin: 0;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--success);
+}
 /* Media Picker */
 .dropdown-inline {
     position: relative;

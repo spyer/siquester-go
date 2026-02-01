@@ -3,7 +3,7 @@ package api
 import (
 	"sync"
 
-	"github.com/VladimirKhil/SI/siquester-go/internal/siq"
+	"github.com/spyer/siquester-go/internal/siq"
 	"github.com/google/uuid"
 )
 

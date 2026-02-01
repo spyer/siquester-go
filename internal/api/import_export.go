@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/VladimirKhil/SI/siquester-go/internal/siq"
+	"github.com/spyer/siquester-go/internal/siq"
 	"github.com/go-chi/chi/v5"
 	"gopkg.in/yaml.v3"
 )

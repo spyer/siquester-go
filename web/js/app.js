@@ -91,6 +91,9 @@ const i18n = {
         addMedia: '+ Media',
         mediaAdded: 'Media added to question',
         noMediaUploaded: 'No media uploaded yet. Upload media first.',
+        answerContent: 'Answer Content (displayed when revealing answer)',
+        answerText: 'Answer Text',
+        mediaAddedToAnswer: 'Media added to answer',
 
         // Toasts
         packageCreated: 'Package created',
@@ -205,6 +208,9 @@ const i18n = {
         addMedia: '+ Медиа',
         mediaAdded: 'Медиа добавлено в вопрос',
         noMediaUploaded: 'Медиафайлы не загружены. Сначала загрузите медиа.',
+        answerContent: 'Содержимое ответа (отображается при показе ответа)',
+        answerText: 'Текст ответа',
+        mediaAddedToAnswer: 'Медиа добавлено в ответ',
 
         // Toasts
         packageCreated: 'Пакет создан',
@@ -1350,6 +1356,10 @@ function renderQuestionEditor(editor, question, roundIndex, themeIndex, question
             ${renderQuestionContent(question, roundIndex, themeIndex, questionIndex)}
         </div>
         <div class="form-section">
+            <div class="form-section-title">${t('answerContent')}</div>
+            ${renderAnswerContent(question, roundIndex, themeIndex, questionIndex)}
+        </div>
+        <div class="form-section">
             <div class="form-section-title">${t('rightAnswers')}</div>
             <div id="right-answers" class="answer-list">
                 ${(question.right || ['']).map((answer, i) => `
@@ -1515,6 +1525,155 @@ function toggleMediaPicker(ri, ti, qi) {
     const picker = document.getElementById(`media-picker-${ri}-${ti}-${qi}`);
     if (picker) {
         picker.classList.toggle('hidden');
+    }
+}
+function renderAnswerContent(question, ri, ti, qi) {
+    // Handle both contentValue array and simpleValue string for answer parameter
+    let content = question.parameters?.answer?.contentValue || [];
+    // If no contentValue but has simpleValue, convert it to content item
+    if (content.length === 0 && question.parameters?.answer?.simpleValue) {
+        content = [{ type: 'text', value: question.parameters.answer.simpleValue.trim() }];
+    }
+    let html = '<div class="answer-content-list">';
+    for (let i = 0; i < content.length; i++) {
+        const item = content[i];
+        const type = item.type || 'text';
+        if (type === 'text') {
+            html += `
+                <div class="content-item">
+                    <div class="content-item-header">
+                        <span class="content-item-type">${t('text')}</span>
+                        <button class="btn btn-icon btn-small" onclick="removeAnswerContentItem(${ri}, ${ti}, ${qi}, ${i})" title="${t('delete')}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <textarea class="form-input" rows="3" onchange="updateAnswerContentItem(${ri}, ${ti}, ${qi}, ${i}, 'value', this.value)">${escapeHtml(item.value || '')}</textarea>
+                </div>
+            `;
+        } else if (item.isRef) {
+            // Media reference
+            const mediaType = type === 'image' ? 'Images' : type === 'audio' ? 'Audio' : type === 'video' ? 'Video' : 'Html';
+            const url = `${API_BASE}/packages/${state.currentPackageId}/media/${mediaType}/${encodeURIComponent(item.value)}`;
+            const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+            html += `
+                <div class="content-item content-item-media">
+                    <div class="content-item-header">
+                        <span class="content-item-type">${typeLabel}: ${escapeHtml(item.value)}</span>
+                        <button class="btn btn-icon btn-small" onclick="removeAnswerContentItem(${ri}, ${ti}, ${qi}, ${i})" title="${t('delete')}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    ${type === 'image' ? `<img src="${url}" style="max-width:300px;max-height:200px;border-radius:8px;">` : ''}
+                    ${type === 'audio' ? `<audio controls src="${url}" style="width:100%;"></audio>` : ''}
+                    ${type === 'video' ? `<video controls src="${url}" style="max-width:400px;max-height:300px;"></video>` : ''}
+                </div>
+            `;
+        }
+    }
+    if (content.length === 0) {
+        html += `<p class="hint-text" style="color: var(--text-secondary); font-size: 13px; margin: 8px 0;">${t('answerContent')}</p>`;
+    }
+    html += '</div>';
+    // Add content buttons
+    html += `
+        <div class="add-content-buttons">
+            <button class="btn btn-secondary btn-small" onclick="addAnswerContentItem(${ri}, ${ti}, ${qi}, 'text')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                ${t('addText')}
+            </button>
+            <div class="dropdown-inline">
+                <button class="btn btn-secondary btn-small" onclick="toggleAnswerMediaPicker(${ri}, ${ti}, ${qi})">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    ${t('addMedia')}
+                </button>
+                <div id="answer-media-picker-${ri}-${ti}-${qi}" class="media-picker hidden">
+                    ${renderAnswerMediaPicker(ri, ti, qi)}
+                </div>
+            </div>
+        </div>
+    `;
+    return html;
+}
+function renderAnswerMediaPicker(ri, ti, qi) {
+    const types = [
+        { key: 'Images', label: t('images'), type: 'image' },
+        { key: 'Audio', label: t('audio'), type: 'audio' },
+        { key: 'Video', label: t('video'), type: 'video' }
+    ];
+    let html = '<div class="media-picker-content">';
+    for (const mediaType of types) {
+        const files = state.media[mediaType.key] || [];
+        if (files.length > 0) {
+            html += `<div class="media-picker-section">
+                <div class="media-picker-title">${mediaType.label}</div>
+                <div class="media-picker-list">`;
+            for (const file of files) {
+                html += `<div class="media-picker-item" onclick="insertAnswerMediaContent(${ri}, ${ti}, ${qi}, '${mediaType.type}', '${escapeHtml(file)}')">
+                    ${mediaType.type === 'image' ? `<img src="${API_BASE}/packages/${state.currentPackageId}/media/${mediaType.key}/${encodeURIComponent(file)}" class="media-picker-thumb">` : ''}
+                    ${mediaType.type === 'audio' ? `<span class="media-picker-icon">🎵</span>` : ''}
+                    ${mediaType.type === 'video' ? `<span class="media-picker-icon">🎬</span>` : ''}
+                    <span class="media-picker-name">${escapeHtml(file.length > 20 ? file.substring(0, 18) + '...' : file)}</span>
+                </div>`;
+            }
+            html += '</div></div>';
+        }
+    }
+    if (!state.media.Images?.length && !state.media.Audio?.length && !state.media.Video?.length) {
+        html += `<div class="media-picker-empty">${t('noMediaUploaded')}</div>`;
+    }
+    html += '</div>';
+    return html;
+}
+function toggleAnswerMediaPicker(ri, ti, qi) {
+    const picker = document.getElementById(`answer-media-picker-${ri}-${ti}-${qi}`);
+    if (picker) {
+        picker.classList.toggle('hidden');
+    }
+}
+async function addAnswerContentItem(ri, ti, qi, type) {
+    const question = state.currentPackage.rounds[ri].themes[ti].questions[qi];
+    if (!question.parameters) question.parameters = {};
+    if (!question.parameters.answer) question.parameters.answer = { name: 'answer', contentValue: [] };
+    if (!question.parameters.answer.contentValue) question.parameters.answer.contentValue = [];
+    question.parameters.answer.contentValue.push({ type: type, value: '' });
+    await savePackageToServer();
+    renderEditor();
+}
+async function insertAnswerMediaContent(ri, ti, qi, type, filename) {
+    const question = state.currentPackage.rounds[ri].themes[ti].questions[qi];
+    if (!question.parameters) question.parameters = {};
+    if (!question.parameters.answer) question.parameters.answer = { name: 'answer', contentValue: [] };
+    if (!question.parameters.answer.contentValue) question.parameters.answer.contentValue = [];
+    question.parameters.answer.contentValue.push({ type: type, value: filename, isRef: true });
+    await savePackageToServer();
+    renderEditor();
+    showToast(t('mediaAddedToAnswer'));
+}
+async function removeAnswerContentItem(ri, ti, qi, index) {
+    const question = state.currentPackage.rounds[ri].themes[ti].questions[qi];
+    if (question.parameters?.answer?.contentValue) {
+        question.parameters.answer.contentValue.splice(index, 1);
+        await savePackageToServer();
+        renderEditor();
+    }
+}
+async function updateAnswerContentItem(roundIndex, themeIndex, questionIndex, itemIndex, field, value) {
+    const question = state.currentPackage.rounds[roundIndex].themes[themeIndex].questions[questionIndex];
+    if (question.parameters?.answer?.contentValue?.[itemIndex]) {
+        question.parameters.answer.contentValue[itemIndex][field] = value;
+        await savePackageToServer();
     }
 }
 async function addContentItem(ri, ti, qi, type) {

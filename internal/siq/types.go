@@ -48,6 +48,13 @@ const (
 	CollectionVideo  = "Video"
 	CollectionHTML   = "Html"
 )
+// Question parameter names
+const (
+	ParamQuestion      = "question"
+	ParamAnswer        = "answer"
+	ParamAnswerType    = "answerType"
+	ParamAnswerOptions = "answerOptions"
+)
 
 // Package version
 const (
